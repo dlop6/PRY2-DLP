@@ -1,0 +1,7 @@
+%token NUM PLUS WS
+IGNORE WS
+%%
+expr:
+    expr PLUS NUM
+  | NUM
+;

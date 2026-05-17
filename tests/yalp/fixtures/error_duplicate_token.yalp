@@ -1,0 +1,6 @@
+%token ID
+%token ID
+%%
+production1:
+    ID
+;

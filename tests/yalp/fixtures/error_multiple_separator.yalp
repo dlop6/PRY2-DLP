@@ -1,0 +1,9 @@
+%token TOKEN_1
+%%
+production1:
+    TOKEN_1
+;
+%%
+production2:
+    TOKEN_1
+;

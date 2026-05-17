@@ -1,0 +1,6 @@
+%token TOKEN_1
+IGNORE SPACE
+%%
+production1:
+    TOKEN_1
+;

@@ -1,0 +1,5 @@
+%token token_1
+%%
+production1:
+    token_1
+;
