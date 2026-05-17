@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Bash",
+      "mcp__Atlassian-Rovo-MCP__getAccessibleAtlassianResources",
+      "mcp__Atlassian-Rovo-MCP__createJiraIssue",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\djlop\\\\OneDrive\\\\DIEGO\\\\UVG\\\\2026\\\\primer semestre\\\\Proyectos\\\\PRY2-DLP\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Write(**/.env)",
+      "Write(**/.env.*)",
+      "Bash(cat **/.env*)",
+      "Bash(less **/.env*)",
+      "Bash(more **/.env*)",
+      "Bash(grep * **/.env*)",
+      "Bash(vim **/.env*)",
+      "Bash(nano **/.env*)"
+    ]
+  }
+}
