@@ -1,0 +1,18 @@
+%token PLUS TIMES LPAREN RPAREN NUMBER
+
+%%
+
+expr:
+    expr PLUS term
+  | term
+;
+
+term:
+    term TIMES factor
+  | factor
+;
+
+factor:
+    LPAREN expr RPAREN
+  | NUMBER
+;

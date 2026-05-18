@@ -1,1 +1,6 @@
 pytest>=7.0
+graphviz>=0.20
+customtkinter>=5.2
+Pillow>=10.0
+matplotlib>=3.8
+networkx>=3.2

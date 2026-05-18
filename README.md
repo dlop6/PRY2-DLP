@@ -29,9 +29,13 @@ python theparser.py examples/input_valid.txt
 
 ### Lanzar la interfaz gráfica
 
+Requiere `customtkinter` y `Pillow` (incluidos en `requirements.txt`):
+
 ```bash
 python gui.py
 ```
+
+La GUI permite abrir un `.yalp`, ver FIRST/FOLLOW, estados LR(0), tablas ACTION/GOTO y el diagrama del autómata.
 
 ## Formato del archivo `.yalp`
 
@@ -73,6 +77,27 @@ Errores léxicos se representan como:
 { "type": "LEXICAL_ERROR", "lexeme": "@", "line": 2, "column": 4, "message": "símbolo no reconocido" }
 ```
 
+## Gramáticas y ε (epsilon)
+
+El generador SLR **soporta producciones vacías** (ε). Una producción sin símbolos en la parte derecha representa ε y se denota con la constante `EPSILON = "ε"` en `slr_generator.py`. El marcador de fin de entrada es `$` (`END_MARKER`).
+
+## Visualización LR(0)
+
+- **Con Graphviz** (mejor calidad, nodos con items): instale [Graphviz](https://graphviz.org/download/) en el sistema y añada `dot` al PATH.
+  - Windows: `winget install Graphviz.Graphviz` y reinicie Cursor.
+- **Sin Graphviz**: se usa automáticamente **matplotlib + networkx** (nodos `I0`, `I1`, … con aristas etiquetadas).
+
+```python
+from slr_generator import augment_grammar, build_lr0_states, build_goto_table
+from lr0_visualizer import generate_lr0_diagram
+
+aug = augment_grammar(grammar)
+states = build_lr0_states(aug)
+goto_table = build_goto_table(aug, states)
+result = generate_lr0_diagram(states, goto_table, "lr0_automaton.png")
+print(result.engine)  # "graphviz" o "matplotlib"
+```
+
 ## Ejecutar tests
 
 ```bash
@@ -85,13 +110,13 @@ pytest tests/ -v
 |---|---|
 | Modelos `Production` y `Grammar` | Completo |
 | Lectura y validación de `.yalp` (`parse_yalp`) | Completo |
-| Generador de tabla SLR | Pendiente |
-| Visualización del autómata LR(0) | Pendiente |
+| Generador de tabla SLR | Completo |
+| Visualización del autómata LR(0) | Completo |
 | Runtime del parser (shift/reduce/accept) | Pendiente |
 | Generación de `theparser.py` | Pendiente |
 | Adaptador para lexer YALex | Pendiente |
 | CLI (`yapar.py`) | Pendiente |
-| Interfaz gráfica | Pendiente |
+| Interfaz gráfica (CustomTkinter) | Completo |
 
 ## Restricciones del proyecto
 
