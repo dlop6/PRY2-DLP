@@ -1,5 +1,7 @@
 # YAPar — Generador de analizadores sintácticos SLR
 
+Integrantes: Diego Lopez #23747, Jennifer Toxcon #21276, Roberto Barreda #23354
+
 Generador de parsers SLR escrito en Python. Toma un archivo `.yalp` con la especificación de una gramática libre de contexto, construye la tabla SLR (FIRST, FOLLOW, autómata LR(0), ACTION/GOTO) y muestra los resultados en una interfaz gráfica. A futuro generará un analizador sintáctico que interactúe con el lexer producido por YALex.
 
 ## Requisitos

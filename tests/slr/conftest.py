@@ -1,6 +1,6 @@
 import pytest
 
-from grammar import Grammar, Production
+from grammarModel import Grammar, Production
 
 
 @pytest.fixture
@@ -8,7 +8,7 @@ def simple_program_grammar() -> Grammar:
     """Gramática mínima tipo program / stmt_list."""
     return Grammar(
         tokens={"SEMI", "ID", "ASSIGN", "PLUS", "NUMBER"},
-        ignore_tokens=set(),
+        ignoreTokens=set(),
         productions=[
             Production("program", ("stmt_list",)),
             Production("stmt_list", ("stmt_list", "stmt")),
@@ -18,7 +18,7 @@ def simple_program_grammar() -> Grammar:
             Production("expr", ("term",)),
             Production("term", ("NUMBER",)),
         ],
-        start_symbol="program",
+        startSymbol="program",
     )
 
 
@@ -26,7 +26,7 @@ def simple_program_grammar() -> Grammar:
 def expr_grammar() -> Grammar:
     return Grammar(
         tokens={"PLUS", "TIMES", "LPAREN", "RPAREN", "NUMBER", "ID"},
-        ignore_tokens=set(),
+        ignoreTokens=set(),
         productions=[
             Production("expr", ("expr", "PLUS", "term")),
             Production("expr", ("term",)),
@@ -36,7 +36,7 @@ def expr_grammar() -> Grammar:
             Production("factor", ("NUMBER",)),
             Production("factor", ("ID",)),
         ],
-        start_symbol="expr",
+        startSymbol="expr",
     )
 
 
@@ -45,12 +45,12 @@ def ambiguous_expr_grammar() -> Grammar:
     """E -> E + E | id — no es SLR (conflictos shift/reduce)."""
     return Grammar(
         tokens={"PLUS", "ID"},
-        ignore_tokens=set(),
+        ignoreTokens=set(),
         productions=[
             Production("E", ("E", "PLUS", "E")),
             Production("E", ("ID",)),
         ],
-        start_symbol="E",
+        startSymbol="E",
     )
 
 
@@ -59,7 +59,7 @@ def slr_dangling_else_grammar() -> Grammar:
     """Gramática SLR clásica (S -> L = R | R, etc.)."""
     return Grammar(
         tokens={"ASSIGN", "STAR", "ID"},
-        ignore_tokens=set(),
+        ignoreTokens=set(),
         productions=[
             Production("S", ("L", "ASSIGN", "R")),
             Production("S", ("R",)),
@@ -67,7 +67,7 @@ def slr_dangling_else_grammar() -> Grammar:
             Production("L", ("ID",)),
             Production("R", ("L",)),
         ],
-        start_symbol="S",
+        startSymbol="S",
     )
 
 
@@ -75,14 +75,14 @@ def slr_dangling_else_grammar() -> Grammar:
 def epsilon_grammar() -> Grammar:
     return Grammar(
         tokens={"a", "b"},
-        ignore_tokens=set(),
+        ignoreTokens=set(),
         productions=[
             Production("S", ("A", "B")),
             Production("A", ()),
             Production("A", ("a",)),
             Production("B", ("b",)),
         ],
-        start_symbol="S",
+        startSymbol="S",
     )
 
 
@@ -90,7 +90,7 @@ def epsilon_grammar() -> Grammar:
 def unambiguous_grammar() -> Grammar:
     return Grammar(
         tokens={"a"},
-        ignore_tokens=set(),
+        ignoreTokens=set(),
         productions=[Production("S", ("a",))],
-        start_symbol="S",
+        startSymbol="S",
     )

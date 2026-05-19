@@ -10,6 +10,6 @@ class Production:
 @dataclass
 class Grammar:
     tokens: set[str]
-    ignore_tokens: set[str]
+    ignoreTokens: set[str]
     productions: list[Production]
-    start_symbol: str
+    startSymbol: str

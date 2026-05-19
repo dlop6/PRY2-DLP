@@ -1,5 +1,5 @@
 import pytest
-from grammar import Production, Grammar
+from grammarModel import Production, Grammar
 
 
 def test_production_instanciable():
@@ -29,17 +29,17 @@ def test_production_desigualdad():
 def test_grammar_instanciable():
     g = Grammar(
         tokens={"TOKEN_1", "TOKEN_2"},
-        ignore_tokens={"TOKEN_2"},
+        ignoreTokens={"TOKEN_2"},
         productions=[Production("prod", ("TOKEN_1",))],
-        start_symbol="prod",
+        startSymbol="prod",
     )
     assert "TOKEN_1" in g.tokens
-    assert "TOKEN_2" in g.ignore_tokens
-    assert g.start_symbol == "prod"
+    assert "TOKEN_2" in g.ignoreTokens
+    assert g.startSymbol == "prod"
     assert len(g.productions) == 1
 
 
 def test_grammar_campos_mutables():
-    g = Grammar(tokens=set(), ignore_tokens=set(), productions=[], start_symbol="")
+    g = Grammar(tokens=set(), ignoreTokens=set(), productions=[], startSymbol="")
     g.tokens.add("X")
     assert "X" in g.tokens
