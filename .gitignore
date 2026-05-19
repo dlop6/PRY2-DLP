@@ -42,6 +42,9 @@ theParser*.py
 examples/**/*Parser.py
 examples/**/*Lr0.png
 
+# grammáticas modificadas para demo (no versionar)
+examples/modified/
+
 # sistema operativo
 .DS_Store
 Thumbs.db

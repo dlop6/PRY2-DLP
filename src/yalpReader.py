@@ -79,6 +79,7 @@ def _parseIgnore(tokenSection: str, tokens: set[str]) -> set[str]:
 
 
 def _parseProductions(prodSection: str) -> list[Production]:
+    seen: set[Production] = set()
     productions: list[Production] = []
     blocks = prodSection.split(";")
     remaining = blocks[-1].strip()
@@ -97,9 +98,10 @@ def _parseProductions(prodSection: str) -> list[Production]:
         alternatives = body.split("|")
         for alt in alternatives:
             symbols = alt.strip().split()
-            if not symbols:
-                raise YAParError("Error YAPar: producción vacía.")
-            productions.append(Production(head, tuple(symbols)))
+            prod = Production(head, tuple(symbols))
+            if prod not in seen:
+                seen.add(prod)
+                productions.append(prod)
 
     return productions
 

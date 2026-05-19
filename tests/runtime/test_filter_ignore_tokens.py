@@ -1,4 +1,6 @@
+import pytest
 from lexerAdapter import makeToken, filterIgnoredTokens
+from parserRuntime import parseTokens
 
 
 def test_filter_removes_ignored():
@@ -31,3 +33,11 @@ def test_filter_preserves_lexical_errors():
     result = filterIgnoredTokens(tokens, {"WS"})
     assert len(result) == 2
     assert result[1]["type"] == "LEXICAL_ERROR"
+
+
+def test_parse_tokens_none_ignore_same_as_empty_set(simple_table):
+    """BUG 16: ignoreTokens=None e ignoreTokens=set() producen el mismo resultado."""
+    tokens = [makeToken("A", "a")]
+    result_none = parseTokens(tokens, simple_table, ignoreTokens=None)
+    result_empty = parseTokens(tokens, simple_table, ignoreTokens=set())
+    assert result_none == result_empty is True

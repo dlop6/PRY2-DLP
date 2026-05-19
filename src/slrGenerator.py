@@ -70,7 +70,10 @@ class SLRConflictError(Exception):
 
 def augmentGrammar(grammar: Grammar) -> Grammar:
     """Añade S' -> S como producción 0."""
+    existing = {p.left for p in grammar.productions}
     augStart = f"{grammar.startSymbol}'"
+    while augStart in existing:
+        augStart += "'"
     augProd = Production(augStart, (grammar.startSymbol,))
     return Grammar(
         tokens=grammar.tokens,
@@ -217,8 +220,10 @@ def buildActionTable(
     grammar: Grammar,
     states: list[State],
     follow: dict[str, set[str]],
+    transitions: dict[tuple[int, str], int] | None = None,
 ) -> dict[tuple[int, str], object]:
-    transitions = _buildTransitions(grammar, states)
+    if transitions is None:
+        transitions = _buildTransitions(grammar, states)
     action: dict[tuple[int, str], object] = {}
     conflicts: list[SLRConflict] = []
     augStart = grammar.startSymbol
@@ -259,29 +264,44 @@ def buildAllTransitions(grammar: Grammar, states: list[State]) -> dict[tuple[int
     return _buildTransitions(grammar, states)
 
 
-def buildGotoTable(grammar: Grammar, states: list[State]) -> dict[tuple[int, str], int]:
-    transitions = _buildTransitions(grammar, states)
+def buildGotoTable(
+    grammar: Grammar,
+    states: list[State],
+    transitions: dict[tuple[int, str], int] | None = None,
+) -> dict[tuple[int, str], int]:
+    if transitions is None:
+        transitions = _buildTransitions(grammar, states)
     nonTerminals = _nonTerminals(grammar)
-    gotoTable: dict[tuple[int, str], int] = {}
-    for (stateId, symbol), targetId in transitions.items():
-        if symbol in nonTerminals:
-            gotoTable[(stateId, symbol)] = targetId
-    return gotoTable
+    return {
+        (stateId, symbol): targetId
+        for (stateId, symbol), targetId in transitions.items()
+        if symbol in nonTerminals
+    }
 
 
-def buildSlrParserTable(grammar: Grammar) -> ParserTable:
-    """Pipeline completo SLR. Lanza SLRConflictError si la gramática no es SLR."""
+def buildSLRData(
+    grammar: Grammar,
+) -> tuple[Grammar, list[State], dict[tuple[int, str], int], dict[tuple[int, str], int], ParserTable]:
+    """Construye todos los componentes SLR en una sola pasada (sin cálculos duplicados).
+
+    Retorna: (gramática aumentada, estados, gotoTable, allTransitions, tabla SLR)
+    Lanza SLRConflictError si la gramática no es SLR.
+    """
     aug = augmentGrammar(grammar)
     first = computeFirst(aug)
     follow = computeFollow(aug, first)
     states = buildLr0States(aug)
-    action = buildActionTable(aug, states, follow)
-    gotoTable = buildGotoTable(aug, states)
-    return ParserTable(
-        productions=list(aug.productions),
-        action=action,
-        goto=gotoTable,
-    )
+    allTrans = _buildTransitions(aug, states)
+    action = buildActionTable(aug, states, follow, allTrans)
+    gotoTable = buildGotoTable(aug, states, allTrans)
+    table = ParserTable(productions=list(aug.productions), action=action, goto=gotoTable)
+    return aug, states, gotoTable, allTrans, table
+
+
+def buildSlrParserTable(grammar: Grammar) -> ParserTable:
+    """Pipeline completo SLR. Lanza SLRConflictError si la gramática no es SLR."""
+    _, _, _, _, table = buildSLRData(grammar)
+    return table
 
 
 # --- Formato legible ---
@@ -342,8 +362,9 @@ def _lr0Symbols(grammar: Grammar) -> list[str]:
 def _firstOfSequence(symbols: tuple[str, ...], first: dict[str, set[str]]) -> set[str]:
     result: set[str] = set()
     for symbol in symbols:
-        result.update(first.get(symbol, {symbol}) - {EPSILON})
-        if EPSILON not in first.get(symbol, set()):
+        symbolFirst = first.get(symbol, {symbol})
+        result.update(symbolFirst - {EPSILON})
+        if EPSILON not in symbolFirst:
             return result
     result.add(EPSILON)
     return result

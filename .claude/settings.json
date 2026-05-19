@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(**/*)",
+      "Edit(**/*)",
+      "Write(**/*)",
+      "Bash(*)",
+      "mcp__Atlassian-Rovo-MCP__getAccessibleAtlassianResources",
+      "mcp__Atlassian-Rovo-MCP__getVisibleJiraProjects",
+      "mcp__Atlassian-Rovo-MCP__searchJiraIssuesUsingJql",
+      "Skill(update-config)",
+      "mcp__claude_ai_Atlassian_Rovo__search"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if grep -q '\\btsconfig\\|src/.*\\.ts$' <<< \"$(jq -r '.tool_input.file_path // .tool_response.filePath' 2>/dev/null || echo '')\"; then npx tsc --noEmit 2>&1 | tail -20; fi",
+            "timeout": 15,
+            "statusMessage": "type-checking TypeScript..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if grep -q 'prisma/schema.prisma' <<< \"$(jq -r '.tool_input.file_path' 2>/dev/null || echo '')\"; then npx prisma validate; fi",
+            "timeout": 10,
+            "statusMessage": "validating Prisma schema..."
+          }
+        ]
+      }
+    ]
+  }
+}

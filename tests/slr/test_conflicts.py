@@ -49,9 +49,9 @@ def test_slr_grammar_builds_without_conflict(expr_grammar):
     assert table.goto
 
 
-def test_dangling_else_has_shift_reduce_conflict(slr_dangling_else_grammar):
+def test_aho_ullman_grammar_has_shift_reduce_conflict(slr_aho_ullman_grammar):
     with pytest.raises(SLRConflictError) as excInfo:
-        buildSlrParserTable(slr_dangling_else_grammar)
+        buildSlrParserTable(slr_aho_ullman_grammar)
     sr = [c for c in excInfo.value.conflicts if c.kind == "shift/reduce"]
     assert sr
     c = sr[0]

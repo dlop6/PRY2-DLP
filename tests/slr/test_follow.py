@@ -32,8 +32,8 @@ def test_format_follow_readable(expr_grammar):
     assert text.startswith("FOLLOW(expr)")
 
 
-def test_follow_slr_grammar(slr_dangling_else_grammar):
-    aug = augmentGrammar(slr_dangling_else_grammar)
+def test_follow_slr_grammar(slr_aho_ullman_grammar):
+    aug = augmentGrammar(slr_aho_ullman_grammar)
     first = computeFirst(aug)
     follow = computeFollow(aug, first)
     assert END_MARKER in follow["L"]

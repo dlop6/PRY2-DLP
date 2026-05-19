@@ -1,0 +1,7 @@
+/* gramática ambigua — genera conflicto shift/reduce */
+%token PLUS ID
+%%
+expr:
+    expr PLUS expr
+  | ID
+;

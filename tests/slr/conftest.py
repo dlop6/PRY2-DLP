@@ -55,8 +55,8 @@ def ambiguous_expr_grammar() -> Grammar:
 
 
 @pytest.fixture
-def slr_dangling_else_grammar() -> Grammar:
-    """Gramática SLR clásica (S -> L = R | R, etc.)."""
+def slr_aho_ullman_grammar() -> Grammar:
+    """Gramática clásica Aho-Ullman (S -> L = R | R, etc.) — no es SLR."""
     return Grammar(
         tokens={"ASSIGN", "STAR", "ID"},
         ignoreTokens=set(),

@@ -1,5 +1,5 @@
 from grammarModel import Grammar, Production
-from slrGenerator import EPSILON, augmentGrammar, computeFirst, formatFirst
+from slrGenerator import EPSILON, _firstOfSequence, augmentGrammar, computeFirst, formatFirst
 
 
 def test_first_terminals(expr_grammar):
@@ -44,3 +44,18 @@ def test_first_augmented_grammar(expr_grammar):
     aug = augmentGrammar(expr_grammar)
     first = computeFirst(aug)
     assert "expr" in first["expr'"] or "NUMBER" in first["expr'"]
+
+
+def test_first_of_sequence_unknown_symbol_is_terminal():
+    """BUG 3: símbolo ausente del dict first se trata como terminal (no deriva epsilon)."""
+    result = _firstOfSequence(("UNKNOWN",), {})
+    assert result == {"UNKNOWN"}
+    assert EPSILON not in result
+
+
+def test_first_of_sequence_unknown_symbol_stops_propagation():
+    """BUG 3: símbolo desconocido no propaga epsilon al siguiente símbolo."""
+    result = _firstOfSequence(("UNKNOWN", "Y"), {"Y": {"y"}})
+    assert "UNKNOWN" in result
+    assert "y" not in result
+    assert EPSILON not in result

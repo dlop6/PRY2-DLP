@@ -29,6 +29,7 @@ def generateLr0Diagram(
     gotoTable: _Transitions,
     outputPath: str,
     allTransitions: _Transitions | None = None,
+    augStart: str | None = None,
 ) -> DiagramResult:
     """Genera PNG o PDF.
 
@@ -49,21 +50,29 @@ def generateLr0Diagram(
         )
 
     if isGraphvizAvailable():
-        out = _renderGraphviz(states, gotoTable, path, fmt, layoutTrans)
-        return DiagramResult(path=out, engine="graphviz")
+        try:
+            out = _renderGraphviz(states, gotoTable, path, fmt, layoutTrans, augStart)
+            return DiagramResult(path=out, engine="graphviz")
+        except ImportError:
+            pass  # binario presente pero paquete Python graphviz no instalado
 
     if fmt == "pdf":
-        raise RuntimeError("PDF no disponible sin Graphviz.")
-    out = _renderMatplotlib(states, gotoTable, path, layoutTrans)
+        raise RuntimeError(
+            "PDF no disponible sin Graphviz instalado.\n"
+            "Windows: winget install Graphviz.Graphviz\n"
+            "Luego: pip install graphviz"
+        )
+    out = _renderMatplotlib(states, gotoTable, path, layoutTrans, augStart)
     return DiagramResult(path=out, engine="matplotlib")
 
 
 def buildLr0DotSource(
     states: list[State],
     gotoTable: _Transitions,
+    augStart: str | None = None,
 ) -> str:
     """Devuelve el código DOT (útil sin binario Graphviz)."""
-    return _buildDot(states, gotoTable, gotoTable).source
+    return _buildDot(states, gotoTable, augStart).source
 
 
 def _renderGraphviz(
@@ -72,8 +81,9 @@ def _renderGraphviz(
     path: Path,
     fmt: str,
     layoutTrans: _Transitions,
+    augStart: str | None = None,
 ) -> Path:
-    dot = _buildDot(states, gotoTable, layoutTrans)
+    dot = _buildDot(states, layoutTrans, augStart)
     base = str(path.with_suffix(""))
     dot.render(base, format=fmt, cleanup=True)
     return Path(f"{base}.{fmt}")
@@ -84,6 +94,7 @@ def _renderMatplotlib(
     gotoTable: _Transitions,
     path: Path,
     layoutTrans: _Transitions,
+    augStart: str | None = None,
 ) -> Path:
     try:
         import matplotlib
@@ -121,7 +132,7 @@ def _renderMatplotlib(
     ax.set_facecolor("#1a1a1a")
 
     nodeSize = max(800, min(1800, int(10000 / max(len(states), 1))))
-    acceptStates = _acceptStateIds(states)
+    acceptStates = _acceptStateIds(states, augStart)
     nodeColors = [
         "#2ecc71" if n in acceptStates else ("#3498db" if n == 0 else "#34495e")
         for n in graph.nodes()
@@ -202,8 +213,8 @@ def _bfsLayout(
 
 def _buildDot(
     states: list[State],
-    gotoTable: _Transitions,
     layoutTrans: _Transitions,
+    augStart: str | None = None,
 ):
     from graphviz import Digraph
 
@@ -211,7 +222,7 @@ def _buildDot(
     dot.attr(rankdir="LR", nodesep="0.4", ranksep="0.8")
     dot.attr("node", shape="box", fontname="Consolas", fontsize="10")
 
-    acceptStates = _acceptStateIds(states)
+    acceptStates = _acceptStateIds(states, augStart)
 
     for state in states:
         label = _stateLabel(state)
@@ -230,7 +241,7 @@ def _buildDot(
 
     seenEdges: set[tuple[int, str, int]] = set()
     for (src, symbol), dst in sorted(
-        gotoTable.items(), key=lambda e: (e[0][0], _symbolSortKey(e[0][1]))
+        layoutTrans.items(), key=lambda e: (e[0][0], _symbolSortKey(e[0][1]))
     ):
         edge = (src, symbol, dst)
         if edge in seenEdges:
@@ -249,10 +260,16 @@ def _stateLabel(state: State) -> str:
     return "\\n".join(lines)
 
 
-def _acceptStateIds(states: list[State]) -> set[int]:
+def _acceptStateIds(states: list[State], augStart: str | None = None) -> set[int]:
     accept: set[int] = set()
     for state in states:
         for item in state.items:
-            if item.dot == len(item.right) and item.left.endswith("'"):
-                accept.add(state.id)
+            if item.dot != len(item.right):
+                continue
+            if augStart is not None:
+                if item.left == augStart:
+                    accept.add(state.id)
+            else:
+                if item.left.endswith("'"):  # fallback cuando no se conoce augStart
+                    accept.add(state.id)
     return accept

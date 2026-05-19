@@ -22,7 +22,7 @@ def parseTokens(
 
     Imprime mensajes en cada situación y devuelve True si la entrada es aceptada.
     """
-    if ignoreTokens:
+    if ignoreTokens is not None:
         tokens = filterIgnoredTokens(tokens, ignoreTokens)
 
     endToken = {

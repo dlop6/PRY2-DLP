@@ -19,11 +19,7 @@ from parserRuntime import parseTokens
 from slrGenerator import (
     ParserTable,
     SLRConflictError,
-    augmentGrammar,
-    buildAllTransitions,
-    buildGotoTable,
-    buildLr0States,
-    buildSlrParserTable,
+    buildSLRData,
     computeFirst,
     computeFollow,
     formatActionEntry,
@@ -339,17 +335,8 @@ class YAParApp(ctk.CTk):
         self._grammar = grammar
         self._setText(self._textGrammar, _formatGrammarSummary(grammar))
 
-        aug = augmentGrammar(grammar)
-        first = computeFirst(aug)
-        follow = computeFollow(aug, first)
-        states = buildLr0States(aug)
-
-        self._setText(self._textSets, _formatFirstFollow(aug, first, follow))
-        self._setText(self._textStates, _formatAllStates(states))
-        self.update()
-
         try:
-            table = buildSlrParserTable(grammar)
+            aug, states, gotoTable, allTrans, table = buildSLRData(grammar)
         except SLRConflictError as exc:
             self._table = None
             self._setText(self._textTables, str(exc))
@@ -359,13 +346,16 @@ class YAParApp(ctk.CTk):
             messagebox.showerror("No es SLR", str(exc))
             return
 
+        # first/follow solo para mostrar en la pestaña de conjuntos
+        first = computeFirst(aug)
+        follow = computeFollow(aug, first)
+        self._setText(self._textSets, _formatFirstFollow(aug, first, follow))
+        self._setText(self._textStates, _formatAllStates(states))
         self._table = table
         self._setText(self._textTables, _formatTables(table))
-        gotoTable = buildGotoTable(aug, states)
-        allTrans = buildAllTransitions(aug, states)
         self._setStatus("✓  Tabla SLR generada. Generando diagrama...")
         self.update()
-        self._showDiagram(states, gotoTable, allTrans)
+        self._showDiagram(states, gotoTable, allTrans, aug.startSymbol)
         self._setIdle()
         self._setStatus("✓  Tabla SLR y autómata LR(0) generados correctamente.")
         self._tabs.set("Autómata")
@@ -410,15 +400,15 @@ class YAParApp(ctk.CTk):
             messagebox.showerror("Validación YALex", msg)
             return
 
-        # 3. Construir tabla SLR
+        # 3. construir tabla SLR (una sola pasada, sin recalcular)
         self._setStatus("⟳  Construyendo tabla SLR...")
         self.update()
         try:
-            table = buildSlrParserTable(grammar)
+            aug, states, gotoTable, allTrans, table = buildSLRData(grammar)
         except SLRConflictError as exc:
             self._setIdle()
             msg = str(exc) + "\nLa gramática no es SLR. No se generó parser."
-            self._setGenStatus(f"✗  La gramática no es SLR.", error=True)
+            self._setGenStatus("✗  La gramática no es SLR.", error=True)
             self._setStatus("✗  La gramática no es SLR (conflictos detectados).", error=True)
             self._setText(self._textTables, str(exc))
             messagebox.showerror("No es SLR", msg)
@@ -427,19 +417,16 @@ class YAParApp(ctk.CTk):
         self._table = table
         self._setText(self._textTables, _formatTables(table))
 
-        # 4. Generar diagrama
+        # 4. generar diagrama con los datos ya calculados
         self._setStatus("⟳  Generando diagrama LR(0)...")
         self.update()
-        aug = augmentGrammar(grammar)
-        states = buildLr0States(aug)
-        gotoTable = buildGotoTable(aug, states)
-        allTrans = buildAllTransitions(aug, states)
         tmpDiagram = Path(tempfile.gettempdir()) / "yaparGenLr0.png"
         try:
-            result = generateLr0Diagram(states, gotoTable, str(tmpDiagram), allTrans)
+            result = generateLr0Diagram(
+                states, gotoTable, str(tmpDiagram), allTrans, aug.startSymbol)
             self._diagramPath = result.path
             self._showGenDiagram(result.path)
-            self._showDiagram(states, gotoTable, allTrans)
+            self._showDiagram(states, gotoTable, allTrans, aug.startSymbol)
         except Exception as exc:  # noqa: BLE001
             self._showGenDiagram(None, error=str(exc))
 
@@ -483,15 +470,18 @@ class YAParApp(ctk.CTk):
 
         captured = io.StringIO()
         oldStdout = _sys.stdout
-        _sys.stdout = captured
+        ok = False
         try:
+            _sys.stdout = captured
             ok = parseTokens(tokens, self._table, self._grammar.ignoreTokens)
+        except Exception as exc:  # noqa: BLE001
+            captured.write(f"\nError inesperado durante el parsing:\n{exc}")
         finally:
             _sys.stdout = oldStdout
+            self._btnRun.configure(state="normal", text="Ejecutar parser")
 
         output = captured.getvalue()
         self._setText(self._textResult, output)
-        self._btnRun.configure(state="normal", text="Ejecutar parser")
 
         if ok:
             self._setStatus("✓  Parsing exitoso: entrada aceptada.")
@@ -508,11 +498,12 @@ class YAParApp(ctk.CTk):
         states: list,
         gotoTable: dict[tuple[int, str], int],
         allTrans: dict[tuple[int, str], int] | None = None,
+        augStart: str | None = None,
     ) -> None:
         """Genera y muestra el diagrama LR(0) en la pestaña Autómata."""
         tmp = Path(tempfile.gettempdir()) / "yaparLr0.png"
         try:
-            result = generateLr0Diagram(states, gotoTable, str(tmp), allTrans)
+            result = generateLr0Diagram(states, gotoTable, str(tmp), allTrans, augStart)
         except (ImportError, RuntimeError) as exc:
             self._setDiagramText(
                 "No se pudo generar el diagrama.\n\n"
@@ -620,11 +611,10 @@ class YAParApp(ctk.CTk):
         self.update()
         try:
             if dest.lower().endswith(".pdf"):
-                aug = augmentGrammar(self._grammar)  # type: ignore[arg-type]
-                states = buildLr0States(aug)
-                gotoTable = buildGotoTable(aug, states)
-                allTrans = buildAllTransitions(aug, states)
-                generateLr0Diagram(states, gotoTable, dest, allTrans)
+                if self._grammar is None:
+                    raise RuntimeError("Gramática no disponible para regenerar PDF.")
+                aug, states, gotoTable, allTrans, _ = buildSLRData(self._grammar)
+                generateLr0Diagram(states, gotoTable, dest, allTrans, aug.startSymbol)
             else:
                 Path(dest).write_bytes(self._diagramPath.read_bytes())
             messagebox.showinfo("YAPar", f"Diagrama guardado en:\n{dest}")

@@ -15,14 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 from codeGenerator import generateParserFile
 from lr0Visualizer import generateLr0Diagram
-from slrGenerator import (
-    SLRConflictError,
-    augmentGrammar,
-    buildAllTransitions,
-    buildGotoTable,
-    buildLr0States,
-    buildSlrParserTable,
-)
+from slrGenerator import SLRConflictError, buildSLRData
 from yalexReader import validateTokensInYalex
 from yalpReader import YAParError, parseYalp
 
@@ -69,30 +62,30 @@ def main(argv: list[str] | None = None) -> int:
             print(err)
         return 1
 
-    # 3. Construir tabla SLR
+    # 3. Construir tabla SLR y todos los componentes en una sola pasada
     try:
-        table = buildSlrParserTable(grammar)
+        aug, states, gotoTable, allTrans, table = buildSLRData(grammar)
     except SLRConflictError as exc:
         print(str(exc))
         print("La gramática no es SLR. No se generó parser.")
         return 1
 
     # 4. Generar diagrama LR(0)
-    aug = augmentGrammar(grammar)
-    states = buildLr0States(aug)
-    gotoTable = buildGotoTable(aug, states)
-    allTrans = buildAllTransitions(aug, states)
     outputBase = Path(args.output).with_suffix("")
     diagramPath = str(outputBase) + "Lr0.png"
     try:
-        generateLr0Diagram(states, gotoTable, diagramPath, allTrans)
+        generateLr0Diagram(states, gotoTable, diagramPath, allTrans, aug.startSymbol)
         print(f"Diagrama LR(0) guardado en: {diagramPath}")
     except Exception as exc:  # noqa: BLE001
         print(f"Advertencia: no se pudo generar el diagrama LR(0): {exc}")
 
     # 5. Generar theparser.py
-    generateParserFile(grammar, table, args.output)
-    print(f"Parser generado exitosamente: {args.output}")
+    try:
+        generateParserFile(grammar, table, args.output)
+        print(f"Parser generado exitosamente: {args.output}")
+    except OSError as exc:
+        print(f"Error: no se pudo escribir '{args.output}': {exc}")
+        return 1
     return 0
 
 
