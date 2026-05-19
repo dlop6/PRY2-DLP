@@ -1,0 +1,12 @@
+(* Lexer de complejidad media — expresiones aritméticas con precedencia *)
+
+let digit = ['0'-'9']+
+let ws    = [' ' '\t' '\n']+
+
+rule tokens =
+  | digit  -> NUMBER
+  | "+"    -> PLUS
+  | "*"    -> TIMES
+  | "("    -> LPAREN
+  | ")"    -> RPAREN
+  | ws     -> WS

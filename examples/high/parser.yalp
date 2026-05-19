@@ -1,0 +1,29 @@
+/* Gramática de complejidad alta: asignaciones e instrucción IF */
+%token ID NUM ASSIGN PLUS SEMI IF THEN END WS
+IGNORE WS
+
+%%
+
+program:
+    stmtList
+;
+
+stmtList:
+    stmt
+  | stmtList stmt
+;
+
+stmt:
+    ID ASSIGN expr SEMI
+  | IF expr THEN stmtList END SEMI
+;
+
+expr:
+    term
+  | expr PLUS term
+;
+
+term:
+    ID
+  | NUM
+;

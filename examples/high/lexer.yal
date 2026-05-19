@@ -1,0 +1,16 @@
+(* Lexer de complejidad alta — lenguaje de asignaciones con IF *)
+
+let letter = ['a'-'z' 'A'-'Z' '_']
+let digit  = ['0'-'9']
+let ws     = [' ' '\t' '\n']+
+
+rule tokens =
+  | letter (letter | digit)* -> ID
+  | digit+                   -> NUM
+  | ":="                     -> ASSIGN
+  | "+"                      -> PLUS
+  | ";"                      -> SEMI
+  | "if"                     -> IF
+  | "then"                   -> THEN
+  | "end"                    -> END
+  | ws                       -> WS

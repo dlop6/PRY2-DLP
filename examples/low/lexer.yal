@@ -1,0 +1,9 @@
+(* Lexer de complejidad baja — expresiones aditivas simples *)
+
+let digit = ['0'-'9']+
+let ws    = [' ' '\t' '\n']+
+
+rule tokens =
+  | digit  -> NUM
+  | "+"    -> PLUS
+  | ws     -> WS

@@ -14,6 +14,7 @@ from grammarModel import Grammar
 from lexerAdapter import tokenizeSimple
 from lr0Visualizer import generateLr0Diagram, isGraphvizAvailable
 from parserRuntime import parseTokens
+from yalexReader import validateTokensInYalex
 from slrGenerator import (
     ParserTable,
     SLRConflictError,
@@ -41,7 +42,7 @@ class YAParApp(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
-        self.title("YAPar — Generador SLR")
+        self.title("YAPar: Generador SLR")
         self.geometry("1200x760")
         self.minsize(960, 620)
 
@@ -75,7 +76,7 @@ class YAParApp(ctk.CTk):
         ctk.CTkLabel(
             sidebar, text="Generador SLR",
             font=ctk.CTkFont(size=12), text_color="gray70",
-        ).grid(row=1, column=0, padx=20, pady=(0, 14), sticky="w")
+        ).grid(row=1, column=0, padx=20, pady=(0, 8), sticky="w")
 
         ctk.CTkLabel(
             sidebar, text="ARCHIVOS",
@@ -107,9 +108,9 @@ class YAParApp(ctk.CTk):
             font=ctk.CTkFont(size=11),
         ).grid(row=7, column=0, padx=20, pady=(0, 2), sticky="w")
 
-        self._outputEntry = ctk.CTkEntry(sidebar, placeholder_text="theparser.py", width=190)
+        self._outputEntry = ctk.CTkEntry(sidebar, placeholder_text="theParser.py", width=190)
         self._outputEntry.grid(row=8, column=0, padx=16, pady=(0, 8), sticky="ew")
-        self._outputEntry.insert(0, "theparser.py")
+        self._outputEntry.insert(0, "theParser.py")
 
         ctk.CTkLabel(
             sidebar, text="ACCIONES",
@@ -378,6 +379,14 @@ class YAParApp(ctk.CTk):
         self._grammar = grammar
         self._setText(self._textGrammar, _formatGrammarSummary(grammar))
 
+        # Validar tokens YAPar vs YALex
+        tokenErrors = validateTokensInYalex(grammar.tokens, str(self._yalPath))
+        if tokenErrors:
+            msg = "\n".join(tokenErrors)
+            self._setGenStatus(msg, error=True)
+            self._setStatus("Error: tokens no coinciden entre .yalp y .yal.", error=True)
+            return
+
         try:
             table = buildSlrParserTable(grammar)
         except SLRConflictError as exc:
@@ -393,7 +402,7 @@ class YAParApp(ctk.CTk):
         aug = augmentGrammar(grammar)
         states = buildLr0States(aug)
         gotoTable = buildGotoTable(aug, states)
-        tmpDiagram = Path(tempfile.gettempdir()) / "yapar_gen_lr0.png"
+        tmpDiagram = Path(tempfile.gettempdir()) / "yaparGenLr0.png"
         try:
             result = generateLr0Diagram(states, gotoTable, str(tmpDiagram))
             self._diagramPath = result.path
@@ -484,7 +493,7 @@ class YAParApp(ctk.CTk):
         gotoTable: dict[tuple[int, str], int],
     ) -> None:
         self._clearDiagram()
-        tmp = Path(tempfile.gettempdir()) / "yapar_lr0.png"
+        tmp = Path(tempfile.gettempdir()) / "yaparLr0.png"
         try:
             result = generateLr0Diagram(states, gotoTable, str(tmp))
         except (ImportError, RuntimeError) as exc:

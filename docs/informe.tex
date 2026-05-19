@@ -1,0 +1,298 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+
+\geometry{margin=2.5cm}
+
+\definecolor{codegray}{rgb}{0.95,0.95,0.95}
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codepurple}{rgb}{0.4,0,0.6}
+\definecolor{uvgblue}{rgb}{0.1,0.22,0.36}
+
+\lstdefinestyle{code}{
+  backgroundcolor=\color{codegray},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{codepurple}\bfseries,
+  commentstyle=\color{codegreen},
+  breaklines=true,
+  frame=single,
+  framerule=0pt,
+  xleftmargin=6pt,
+  xrightmargin=6pt,
+  aboveskip=6pt,
+  belowskip=6pt,
+}
+\lstset{style=code}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small CC3071 \textperiodcentered{} UVG 2026-I}
+\lhead{\small Proyecto 02: YAPar}
+\cfoot{\thepage}
+
+\titleformat{\section}{\large\bfseries\color{uvgblue}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+% -----------------------------------------------------------------------
+\begin{document}
+
+\begin{center}
+  {\Large\bfseries Proyecto 02: YAPar}\\[4pt]
+  {\large Generador de Analizadores Sintácticos SLR}\\[8pt]
+  \small Universidad del Valle de Guatemala\\
+  Facultad de Ingeniería: CC3071 Diseño de Lenguajes de Programación\\
+  Semestre I, 2026\\[8pt]
+  \begin{tabular}{ll}
+    Diego Lopez     & \#23747 \\
+    Jennifer Toxcon & \#21276 \\
+    Roberto Barreda & \#23354 \\
+  \end{tabular}\\[6pt]
+  \small Repositorio: \url{https://github.com/bar23354/PRY2-DLP}
+\end{center}
+
+\hrule
+\vspace{10pt}
+
+% -----------------------------------------------------------------------
+\section{Descripción del proyecto}
+
+YAPar es un generador de analizadores sintácticos SLR implementado en Python.
+Toma como entrada una gramática libre de contexto en lenguaje YAPar
+(\texttt{.yalp}) y una especificación léxica YALex (\texttt{.yal}), valida la
+consistencia de tokens entre ambos archivos y produce:
+
+\begin{itemize}[noitemsep]
+  \item Un archivo \texttt{theParser.py} completamente autónomo que implementa
+        el analizador sintáctico generado.
+  \item El autómata LR(0) visualizado como imagen (PNG o PDF).
+  \item Detección y reporte de conflictos SLR, errores léxicos y errores
+        sintácticos con número de línea y columna.
+\end{itemize}
+
+% -----------------------------------------------------------------------
+\section{Integrantes}
+
+\begin{tabular}{lll}
+  \toprule
+  \textbf{Nombre} & \textbf{Carné} & \textbf{Responsabilidad principal} \\
+  \midrule
+  Diego Lopez     & 23747 & Lector \texttt{.yalp}, modelos de gramática, tests \\
+  Jennifer Toxcon & 21276 & Generador SLR, FIRST/FOLLOW, autómata LR(0) \\
+  Roberto Barreda & 23354 & CLI, runtime del parser, generación de código, GUI \\
+  \bottomrule
+\end{tabular}
+
+% -----------------------------------------------------------------------
+\section{Requisitos}
+
+\begin{itemize}[noitemsep]
+  \item Python 3.10 o superior.
+  \item Dependencias: \lstinline|pip install -r requirements.txt|
+        (pytest, customtkinter, Pillow, graphviz, matplotlib, networkx).
+  \item Graphviz opcional para mejor resolución del diagrama LR(0):
+        \lstinline|winget install Graphviz.Graphviz|.
+\end{itemize}
+
+% -----------------------------------------------------------------------
+\section{Diseño del software}
+
+\subsection{Arquitectura por capas}
+
+El proyecto sigue una arquitectura en capas separadas por responsabilidad.
+Cada módulo expone una interfaz pública mínima y no conoce los detalles
+de implementación de los demás.
+
+\begin{center}
+\begin{tabular}{lp{9cm}}
+  \toprule
+  \textbf{Módulo} & \textbf{Responsabilidad} \\
+  \midrule
+  \texttt{src/grammarModel.py}  &
+    Define los tipos inmutables \texttt{Production} y \texttt{Grammar} usados
+    como contrato entre todas las capas. \\
+  \texttt{src/yalpReader.py}    &
+    Elimina comentarios \texttt{/* */}, separa secciones con \texttt{\%\%},
+    procesa \texttt{\%token} e \texttt{IGNORE}, parsea producciones y valida
+    nombres y símbolos. Sin expresiones regulares. \\
+  \texttt{src/yalexReader.py}   &
+    Lee un archivo \texttt{.yal} y extrae los nombres de tokens definidos
+    después de \texttt{->}. Valida que los tokens del \texttt{.yalp} existan
+    también en el lexer. \\
+  \texttt{src/slrGenerator.py}  &
+    Implementa el algoritmo SLR completo: aumentación, FIRST, FOLLOW,
+    clausura, goto, construcción de estados LR(0), tablas ACTION/GOTO y
+    detección de conflictos. \\
+  \texttt{src/lr0Visualizer.py} &
+    Genera el diagrama del autómata LR(0) usando Graphviz si está disponible
+    en el PATH; si no, usa matplotlib + networkx como respaldo. \\
+  \texttt{src/parserRuntime.py} &
+    Implementa el ciclo principal del parser: shift, reduce, accept y reporte
+    de errores léxicos y sintácticos con posición. \\
+  \texttt{src/codeGenerator.py} &
+    Serializa las tablas ACTION/GOTO en texto Python y las inserta en una
+    plantilla que produce \texttt{theParser.py} autocontenido. \\
+  \texttt{src/lexerAdapter.py}  &
+    Tokenizador simple que mapea palabras del archivo de entrada a tipos de
+    token; produce tokens en formato dict compatible con el runtime. \\
+  \texttt{src/guiApp.py}        &
+    Interfaz gráfica con siete pestañas: Gramática, FIRST/FOLLOW, Estados
+    LR(0), Tablas, Autómata, Generar Parser y Probar Parser. \\
+  \texttt{yapar.py}             &
+    Punto de entrada CLI: valida argumentos, orquesta el pipeline completo
+    y reporta errores al usuario. \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Flujo de datos}
+
+El pipeline principal sigue este orden:
+
+\begin{enumerate}[noitemsep]
+  \item \textbf{Lectura}: \texttt{parseYalp()} lee el \texttt{.yalp} y devuelve
+        un objeto \texttt{Grammar} con tokens, tokens ignorados, producciones y
+        símbolo inicial.
+  \item \textbf{Validación léxica}: \texttt{validateTokensInYalex()} verifica que
+        cada token del \texttt{.yalp} esté definido en el \texttt{.yal}.
+  \item \textbf{Generación SLR}: \texttt{buildSlrParserTable()} aumenta la
+        gramática, calcula FIRST/FOLLOW, construye los estados LR(0) y llena
+        las tablas ACTION y GOTO. Si hay conflictos lanza \texttt{SLRConflictError}.
+  \item \textbf{Visualización}: \texttt{generateLr0Diagram()} produce el PNG del
+        autómata.
+  \item \textbf{Generación de código}: \texttt{generateParserFile()} escribe
+        \texttt{theParser.py} con las tablas serializadas.
+  \item \textbf{Ejecución}: \texttt{theParser.py} tokeniza el archivo de entrada
+        con \texttt{tokenize()} y ejecuta el ciclo shift/reduce/accept.
+\end{enumerate}
+
+\subsection{Algoritmo SLR: implementación detallada}
+
+\paragraph{Aumentación.} Se añade la producción $S' \to S$ como producción~0.
+El símbolo aumentado $S'$ actúa como nuevo símbolo inicial y permite que el
+estado de aceptación tenga un único ítem kernel.
+
+\paragraph{Conjuntos FIRST y FOLLOW.} Se calculan iterativamente hasta punto
+fijo. \texttt{computeFirst} soporta producciones vacías
+($\varepsilon$); \texttt{computeFollow} añade \texttt{\$} a
+$\text{FOLLOW}(S')$ y propaga siguiendo las reglas estándar.
+
+\paragraph{Clausura y goto.} \texttt{closure} expande un conjunto de ítems
+LR(0) añadiendo todas las producciones de los no-terminales que aparecen
+después del punto. \texttt{goto} mueve el punto sobre un símbolo y aplica
+clausura al resultado.
+
+\paragraph{Construcción de estados.} \texttt{buildLr0States} parte del estado
+$I_0 = \text{closure}(\{S' \rightarrow \cdot S\})$ y aplica \texttt{goto} con todos
+los símbolos de la gramática para obtener nuevos estados, evitando duplicados
+mediante un mapa de conjuntos de ítems a identificadores de estado.
+
+\paragraph{Tablas ACTION y GOTO.}
+\begin{itemize}[noitemsep]
+  \item Si $A \to \alpha \cdot a \beta$ y $a$ es terminal: $\text{ACTION}[s,a] = \text{shift}(s')$.
+  \item Si $A \to \alpha \cdot$ y $A \neq S'$: $\text{ACTION}[s,t] = \text{reduce}(i)$
+        para todo $t \in \text{FOLLOW}(A)$.
+  \item Si $S' \to S \cdot$: $\text{ACTION}[s,\$] = \text{accept}$.
+  \item $\text{GOTO}[s, A] = s'$ para cada no-terminal $A$.
+\end{itemize}
+Un conflicto ocurre cuando se intenta escribir dos acciones distintas en la
+misma celda; en ese caso \texttt{SLRConflictError} detiene el proceso.
+
+\subsection{Parser generado: theParser.py}
+
+\texttt{codeGenerator.py} serializa las tablas como literales Python y las
+inserta en una plantilla de texto. El archivo resultante:
+
+\begin{itemize}[noitemsep]
+  \item Contiene \texttt{TOKENS}, \texttt{IGNORE\_TOKENS}, \texttt{PRODUCTIONS},
+        \texttt{ACTION} y \texttt{GOTO} como diccionarios y listas Python.
+  \item Define \texttt{\_splitWithColumns()} para tokenizar sin expresiones
+        regulares: recorre la línea carácter a carácter y registra la columna
+        de inicio de cada palabra.
+  \item Define \texttt{parse(tokens)}: implementa el ciclo
+        shift/reduce/accept con una pila de estados enteros.
+  \item Se ejecuta directamente con \lstinline|python theParser.py input.txt|.
+\end{itemize}
+
+\subsection{Documentación del código}
+
+Todos los módulos siguen las mismas convenciones:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Nombres}: \texttt{camelCase} para funciones y variables;
+        \texttt{PascalCase} para clases y dataclasses.
+  \item \textbf{Dataclasses}: \texttt{Production} e \texttt{Item} son
+        \texttt{frozen=True} para poder usarlos en conjuntos y como claves
+        de diccionario.
+  \item \textbf{Sin efectos secundarios}: las funciones del pipeline SLR son
+        puras; toda la mutabilidad queda en \texttt{guiApp.py}.
+  \item \textbf{Sin expresiones regulares}: ningún módulo importa \texttt{re}.
+        El reconocimiento de patrones se implementa con operaciones de strings
+        (\texttt{find}, \texttt{split}, \texttt{startswith}) y recorridos de
+        caracteres.
+\end{itemize}
+
+% -----------------------------------------------------------------------
+\section{Cómo ejecutarlo}
+
+\subsection{CLI}
+
+\begin{lstlisting}[language=bash]
+# Generar el parser
+python yapar.py examples/medium/parser.yalp \
+       -l examples/medium/lexer.yal \
+       -o theParser.py
+
+# Ejecutar el parser generado
+python theParser.py examples/medium/input_valid.txt
+python theParser.py examples/medium/input_error.txt
+\end{lstlisting}
+
+\subsection{Interfaz gráfica}
+
+\begin{lstlisting}[language=bash]
+python src/guiApp.py
+\end{lstlisting}
+
+La GUI ofrece las mismas capacidades que el CLI desde una sola ventana:
+carga de archivos, validación YAPar/YALex, análisis de gramática,
+visualización del autómata LR(0), generación de \texttt{theParser.py} y
+prueba del parser con un archivo de entrada.
+
+% -----------------------------------------------------------------------
+\section{Archivos de prueba}
+
+Se proveen tres grupos de archivos, uno por nivel de complejidad.
+Cada grupo contiene: especificación de lexer (\texttt{.yal}),
+especificación de parser (\texttt{.yalp}), entrada válida e
+entrada con error.
+
+\begin{center}
+\begin{tabular}{lll}
+  \toprule
+  \textbf{Complejidad} & \textbf{Gramática} & \textbf{Directorio} \\
+  \midrule
+  Baja   & Suma de números
+          (\texttt{expr $\to$ NUM $\mid$ expr PLUS NUM})
+        & \texttt{examples/low/} \\
+  Media  & Aritmética con precedencia ($+$, $\times$, paréntesis)
+        & \texttt{examples/medium/} \\
+  Alta   & Asignaciones e instrucción \texttt{IF\ldots THEN\ldots END}
+        & \texttt{examples/high/} \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}

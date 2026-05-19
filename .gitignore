@@ -33,8 +33,14 @@ coverage.xml
 *.swp
 *.swo
 
-# archivos generados por el proyecto
-theparser.py
+# archivos generados por el proyecto (parsers generados y sus diagramas)
+theParser.py
+theParser*.py
+*Lr0.png
+*Lr0.pdf
+# parsers de ejemplo generados durante pruebas
+examples/**/*Parser.py
+examples/**/*Lr0.png
 
 # sistema operativo
 .DS_Store

@@ -22,6 +22,7 @@ from slrGenerator import (
     buildLr0States,
     buildSlrParserTable,
 )
+from yalexReader import validateTokensInYalex
 from yalpReader import YAParError, parseYalp
 
 
@@ -60,7 +61,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: no se encontró el archivo '{args.yalp_file}'.")
         return 1
 
-    # 2. Construir tabla SLR
+    # 2. Validar que los tokens del .yalp estén también en el .yal
+    tokenErrors = validateTokensInYalex(grammar.tokens, args.lexer)
+    if tokenErrors:
+        for err in tokenErrors:
+            print(err)
+        return 1
+
+    # 3. Construir tabla SLR
     try:
         table = buildSlrParserTable(grammar)
     except SLRConflictError as exc:
@@ -68,19 +76,19 @@ def main(argv: list[str] | None = None) -> int:
         print("La gramática no es SLR. No se generó parser.")
         return 1
 
-    # 3. Generar diagrama LR(0)
+    # 4. Generar diagrama LR(0)
     aug = augmentGrammar(grammar)
     states = buildLr0States(aug)
     gotoTable = buildGotoTable(aug, states)
     outputBase = Path(args.output).with_suffix("")
-    diagramPath = str(outputBase) + "_lr0.png"
+    diagramPath = str(outputBase) + "Lr0.png"
     try:
         generateLr0Diagram(states, gotoTable, diagramPath)
         print(f"Diagrama LR(0) guardado en: {diagramPath}")
     except Exception as exc:  # noqa: BLE001
         print(f"Advertencia: no se pudo generar el diagrama LR(0): {exc}")
 
-    # 4. Generar theparser.py
+    # 5. Generar theparser.py
     generateParserFile(grammar, table, args.output)
     print(f"Parser generado exitosamente: {args.output}")
     return 0

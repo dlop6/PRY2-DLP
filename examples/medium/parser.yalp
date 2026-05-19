@@ -1,0 +1,20 @@
+/* Gramática de complejidad media: expresiones aritméticas con precedencia */
+%token NUMBER PLUS TIMES LPAREN RPAREN WS
+IGNORE WS
+
+%%
+
+expr:
+    expr PLUS term
+  | term
+;
+
+term:
+    term TIMES factor
+  | factor
+;
+
+factor:
+    LPAREN expr RPAREN
+  | NUMBER
+;
