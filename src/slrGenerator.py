@@ -254,6 +254,11 @@ def buildActionTable(
     return action
 
 
+def buildAllTransitions(grammar: Grammar, states: list[State]) -> dict[tuple[int, str], int]:
+    """Todas las transiciones del autómata: terminales Y no-terminales."""
+    return _buildTransitions(grammar, states)
+
+
 def buildGotoTable(grammar: Grammar, states: list[State]) -> dict[tuple[int, str], int]:
     transitions = _buildTransitions(grammar, states)
     nonTerminals = _nonTerminals(grammar)

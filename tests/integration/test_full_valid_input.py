@@ -52,7 +52,7 @@ def test_addition_accepted(expr_table, expr_grammar, capsys):
 
 
 def test_example_input_valid_file(expr_table, expr_grammar, capsys):
-    tokens = tokenizeSimple(str(EXAMPLES / "input_valid.txt"), expr_grammar.tokens)
+    tokens = tokenizeSimple(str(EXAMPLES / "medium" / "input_valid.txt"), expr_grammar.tokens)
     result = parseTokens(tokens, expr_table, expr_grammar.ignoreTokens)
     assert result is True
 

@@ -9,6 +9,9 @@ from pathlib import Path
 
 from slrGenerator import State, _symbolSortKey
 
+# Tipo alias para claridad
+_Transitions = dict[tuple[int, str], int]
+
 
 @dataclass(frozen=True)
 class DiagramResult:
@@ -23,12 +26,21 @@ def isGraphvizAvailable() -> bool:
 
 def generateLr0Diagram(
     states: list[State],
-    gotoTable: dict[tuple[int, str], int],
+    gotoTable: _Transitions,
     outputPath: str,
+    allTransitions: _Transitions | None = None,
 ) -> DiagramResult:
-    """Genera PNG o PDF. Usa Graphviz si está instalado; si no, matplotlib."""
+    """Genera PNG o PDF.
+
+    allTransitions: transiciones completas (terminales + no-terminales).
+    Si se proporciona, mejora el layout y muestra todas las aristas.
+    Si no, usa gotoTable como antes (retrocompatible).
+    """
     path = Path(outputPath)
     fmt = "pdf" if path.suffix.lower() == ".pdf" else "png"
+    # Para el layout usamos allTransitions si está disponible
+    layoutTrans = allTransitions if allTransitions is not None else gotoTable
+
     if fmt == "pdf" and not isGraphvizAvailable():
         raise RuntimeError(
             "La exportación PDF requiere Graphviz instalado en el sistema.\n"
@@ -37,30 +49,31 @@ def generateLr0Diagram(
         )
 
     if isGraphvizAvailable():
-        out = _renderGraphviz(states, gotoTable, path, fmt)
+        out = _renderGraphviz(states, gotoTable, path, fmt, layoutTrans)
         return DiagramResult(path=out, engine="graphviz")
 
     if fmt == "pdf":
         raise RuntimeError("PDF no disponible sin Graphviz.")
-    out = _renderMatplotlib(states, gotoTable, path)
+    out = _renderMatplotlib(states, gotoTable, path, layoutTrans)
     return DiagramResult(path=out, engine="matplotlib")
 
 
 def buildLr0DotSource(
     states: list[State],
-    gotoTable: dict[tuple[int, str], int],
+    gotoTable: _Transitions,
 ) -> str:
     """Devuelve el código DOT (útil sin binario Graphviz)."""
-    return _buildDot(states, gotoTable).source
+    return _buildDot(states, gotoTable, gotoTable).source
 
 
 def _renderGraphviz(
     states: list[State],
-    gotoTable: dict[tuple[int, str], int],
+    gotoTable: _Transitions,
     path: Path,
     fmt: str,
+    layoutTrans: _Transitions,
 ) -> Path:
-    dot = _buildDot(states, gotoTable)
+    dot = _buildDot(states, gotoTable, layoutTrans)
     base = str(path.with_suffix(""))
     dot.render(base, format=fmt, cleanup=True)
     return Path(f"{base}.{fmt}")
@@ -68,8 +81,9 @@ def _renderGraphviz(
 
 def _renderMatplotlib(
     states: list[State],
-    gotoTable: dict[tuple[int, str], int],
+    gotoTable: _Transitions,
     path: Path,
+    layoutTrans: _Transitions,
 ) -> Path:
     try:
         import matplotlib
@@ -82,18 +96,31 @@ def _renderMatplotlib(
             "o instale el respaldo: pip install matplotlib networkx"
         ) from exc
 
+    # Grafo con TODAS las transiciones para layout preciso
     graph = nx.DiGraph()
     for state in states:
         graph.add_node(state.id)
-    for (src, _symbol), dst in gotoTable.items():
-        graph.add_edge(src, dst, label=_symbol)
+    # Aristas: usamos layoutTrans (que puede incluir terminales)
+    for (src, symbol), dst in layoutTrans.items():
+        graph.add_edge(src, dst, label=symbol)
 
-    pos = _bfsLayout(states, gotoTable)
-    figW = max(10, len(states) * 1.2)
-    figH = max(6, len(states) * 0.5)
+    pos = _bfsLayout(states, layoutTrans)
+
+    # Cálculo de tamaño basado en span real del grafo
+    if pos:
+        xs = [x for x, _ in pos.values()]
+        ys = [y for _, y in pos.values()]
+        spanX = max(xs) - min(xs) + 1
+        spanY = max(ys) - min(ys) + 1
+    else:
+        spanX, spanY = 1, 1
+    figW = min(36, max(10, spanX * 3.0))
+    figH = min(40, max(8, spanY * 3.0))
+
     _, ax = plt.subplots(figsize=(figW, figH), facecolor="#1a1a1a")
     ax.set_facecolor("#1a1a1a")
 
+    nodeSize = max(800, min(1800, int(10000 / max(len(states), 1))))
     acceptStates = _acceptStateIds(states)
     nodeColors = [
         "#2ecc71" if n in acceptStates else ("#3498db" if n == 0 else "#34495e")
@@ -101,47 +128,64 @@ def _renderMatplotlib(
     ]
     nx.draw_networkx_nodes(
         graph, pos, ax=ax, node_color=nodeColors,
-        node_size=2200, edgecolors="white", linewidths=2,
+        node_size=nodeSize, edgecolors="white", linewidths=2,
     )
     nx.draw_networkx_labels(
         graph, pos,
         labels={n: f"I{n}" for n in graph.nodes()},
-        font_color="white", font_size=9, font_weight="bold", ax=ax,
+        font_color="white", font_size=max(7, 11 - len(states) // 3),
+        font_weight="bold", ax=ax,
     )
     nx.draw_networkx_edges(
         graph, pos, ax=ax, edge_color="#95a5a6",
-        arrows=True, arrowsize=16, connectionstyle="arc3,rad=0.08",
+        arrows=True, arrowsize=20, connectionstyle="arc3,rad=0.1",
+        min_source_margin=nodeSize ** 0.5 * 0.6,
+        min_target_margin=nodeSize ** 0.5 * 0.6,
     )
+    # Mostrar etiquetas de aristas (símbolos de transición)
     edgeLabels = {(u, v): d.get("label", "") for u, v, d in graph.edges(data=True)}
     nx.draw_networkx_edge_labels(
         graph, pos, edge_labels=edgeLabels,
-        font_color="#f1c40f", font_size=8, ax=ax,
+        font_color="#f1c40f", font_size=max(6, 9 - len(states) // 5), ax=ax,
+        bbox={"boxstyle": "round,pad=0.2", "facecolor": "#2a2a2a", "edgecolor": "none"},
     )
     ax.axis("off")
-    plt.tight_layout()
+    ax.margins(0.15)
+    plt.tight_layout(pad=1.5)
     out = path if path.suffix.lower() == ".png" else path.with_suffix(".png")
-    plt.savefig(out, dpi=120, facecolor="#1a1a1a", bbox_inches="tight")
+    plt.savefig(out, dpi=130, facecolor="#1a1a1a", bbox_inches="tight")
     plt.close()
     return out
 
 
 def _bfsLayout(
     states: list[State],
-    gotoTable: dict[tuple[int, str], int],
+    transitions: _Transitions,
 ) -> dict[int, tuple[float, float]]:
+    """BFS layout usando las transiciones dadas (pueden ser todas o solo GOTO)."""
     levels: dict[int, int] = {0: 0}
     queue: deque[int] = deque([0])
     while queue:
         current = queue.popleft()
-        for (src, _symbol), dst in gotoTable.items():
+        for (src, _symbol), dst in transitions.items():
             if src == current and dst not in levels:
                 levels[dst] = levels[current] + 1
                 queue.append(dst)
 
+    # Distribuir estados no alcanzados según su vecino más cercano alcanzado
     maxLevel = max(levels.values(), default=0)
-    for state in states:
-        if state.id not in levels:
-            levels[state.id] = maxLevel + 1
+    unvisited = [s.id for s in states if s.id not in levels]
+
+    # Para cada estado no visitado, intentar inferir su nivel
+    # por el estado desde el que se alcanza (buscando en transitions)
+    for sid in unvisited:
+        parentLevel = None
+        for (src, _sym), dst in transitions.items():
+            if dst == sid and src in levels:
+                candidateLevel = levels[src] + 1
+                if parentLevel is None or candidateLevel < parentLevel:
+                    parentLevel = candidateLevel
+        levels[sid] = parentLevel if parentLevel is not None else maxLevel + 1
 
     byLevel: dict[int, list[int]] = {}
     for node, level in levels.items():
@@ -152,11 +196,15 @@ def _bfsLayout(
         nodes.sort()
         width = len(nodes)
         for index, node in enumerate(nodes):
-            pos[node] = (index - (width - 1) / 2, -level)
+            pos[node] = (index - (width - 1) / 2.0, -level)
     return pos
 
 
-def _buildDot(states: list[State], gotoTable: dict[tuple[int, str], int]):
+def _buildDot(
+    states: list[State],
+    gotoTable: _Transitions,
+    layoutTrans: _Transitions,
+):
     from graphviz import Digraph
 
     dot = Digraph("LR0", format="png")

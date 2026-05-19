@@ -18,6 +18,7 @@ from lr0Visualizer import generateLr0Diagram
 from slrGenerator import (
     SLRConflictError,
     augmentGrammar,
+    buildAllTransitions,
     buildGotoTable,
     buildLr0States,
     buildSlrParserTable,
@@ -80,10 +81,11 @@ def main(argv: list[str] | None = None) -> int:
     aug = augmentGrammar(grammar)
     states = buildLr0States(aug)
     gotoTable = buildGotoTable(aug, states)
+    allTrans = buildAllTransitions(aug, states)
     outputBase = Path(args.output).with_suffix("")
     diagramPath = str(outputBase) + "Lr0.png"
     try:
-        generateLr0Diagram(states, gotoTable, diagramPath)
+        generateLr0Diagram(states, gotoTable, diagramPath, allTrans)
         print(f"Diagrama LR(0) guardado en: {diagramPath}")
     except Exception as exc:  # noqa: BLE001
         print(f"Advertencia: no se pudo generar el diagrama LR(0): {exc}")

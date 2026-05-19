@@ -56,7 +56,7 @@ def test_lexical_error_message_printed(expr_table, expr_grammar, capsys):
 
 
 def test_example_lexical_error_file(expr_table, expr_grammar, capsys):
-    tokens = tokenizeSimple(str(EXAMPLES / "input_lexical_error.txt"), expr_grammar.tokens)
+    tokens = tokenizeSimple(str(EXAMPLES / "medium" / "input_lexical_error.txt"), expr_grammar.tokens)
     result = parseTokens(tokens, expr_table, expr_grammar.ignoreTokens)
     assert result is False
     out = capsys.readouterr().out
